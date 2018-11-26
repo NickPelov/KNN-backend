@@ -59,6 +59,10 @@ class RegisterController extends Controller
                             'name' => 'password',
                             'contents' => $request->password,
                         ],
+                        [
+                            'name' => 'redirect_link',
+                            'contents' => $request->redirect_link,
+                        ],
                     ],
                     'http_errors' => false,
                 ]);
@@ -75,7 +79,8 @@ class RegisterController extends Controller
                             ],
                             [
                                 'name' => 'activation_code',
-                                'contents' => env('AUTH_SERVICE_IP').'activate?activation_code='.$auth_responce_body['activation_code'],
+                                'contents' =>
+                                env('GATEWAY_SERVICE_IP') . 'user/activate?activation_code=' . $auth_responce_body['activation_code'] . '&redirect_link=' . $request->redirect_link,
                             ],
                         ],
                         'http_errors' => false,
@@ -120,8 +125,19 @@ class RegisterController extends Controller
         }
 
     }
+
     public function Activate(Request $request)
     {
+        $auth_activation_response =
+        $this->auth_service_client
+            ->post('activate?activation_code=' . $request->activation_code . '&redirect_link=' . $request->redirect_link,
+                [
+                    'http_errors' => false,
+                ]);
+        $auth_activation_responce_body = json_decode($auth_activation_response->getBody()->getContents(), true);
 
+        if (isset($auth_activation_responce_body['redirect_link'])) {
+            return redirect($auth_activation_responce_body['redirect_link']);
+        }
     }
 }

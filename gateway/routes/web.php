@@ -19,10 +19,12 @@ $router->post('/user/register', 'Authentication\RegisterController@Register');
 
 $router->post('/user/login', 'Authentication\LoginController@Login');
 
-$router->post('/user/activate', 'Authentication\RegisterController@Activate');
-
-$router->post('/user/verify', 'Authentication\LoginController@Verify');
+$router->get('/user/activate', 'Authentication\RegisterController@Activate');
 
 $router->post('/user/password/reset', 'Authentication\PasswordController@ResetPassword');
 
 $router->post('/user/password/new', 'Authentication\PasswordController@SetNewPassword');
+
+$router->post('admin/profile', ['middleware' => 'verify', function () {
+    return response()->json(["ez" => true]);
+}]);

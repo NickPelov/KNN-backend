@@ -2,14 +2,13 @@
 
 namespace App\Http\Controllers\Authentication;
 
-use GuzzleHttp\Client;
 use App\Http\Controllers\Controller;
-use GuzzleHttp\Exception\RequestException;
-use GuzzleHttp\Psr7;
+use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 
 class LoginController extends Controller
 {
+    private $auth_service_client;
     /**
      * Create a new controller instance.
      *
@@ -17,14 +16,35 @@ class LoginController extends Controller
      */
     public function __construct()
     {
-        //
+        $this->auth_service_client = new Client([
+            // Base URI is used with relative requests
+            'base_uri' => env('AUTH_SERVICE_IP'),
+            // You can set any number of default request options.
+            'timeout' => 2.0,
+        ]);
     }
-    public function Login(Request $requset)
+    public function Login(Request $request)
     {
+        $auth_response = $this->auth_service_client->post('login',
+            [
+                'multipart' => [
+                    [
+                        'name' => 'email',
+                        'contents' => $request->email,
+                    ],
+                    [
+                        'name' => 'password',
+                        'contents' => $request->password,
+                    ],
+                ],
+                'http_errors' => false,
+            ]);
 
-    }
-    public function Verify(Request $requset)
-    {
+        $auth_responce_body = json_decode($auth_response->getBody()->getContents(), true);
 
+        return response()->json([
+            "response" => $auth_responce_body,
+            "statusCode" => $auth_response->getStatusCode(),
+        ]);
     }
 }
