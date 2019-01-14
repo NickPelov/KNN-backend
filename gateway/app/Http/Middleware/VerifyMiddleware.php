@@ -33,7 +33,6 @@ class VerifyMiddleware
 
             $auth_response = $auth_service_client->post('verify',
                 [
-
                     'headers' => [
                         'Authorization' => 'Bearer ' . $token,
                     ],

@@ -14,17 +14,37 @@
 $router->get('/', function () use ($router) {
     return $router->app->version();
 });
+$router->group(['prefix' => 'v1', 'namespace' => 'v1'], function () use ($router) {
 
-$router->post('/user/register', 'Authentication\RegisterController@Register');
+    $router->get('/test', "TestController@test"); //up-to-date
 
-$router->post('/user/login', 'Authentication\LoginController@Login');
+    $router->post('/user/register', 'Authentication\RegisterController@Register'); //up-to-date
 
-$router->get('/user/activate', 'Authentication\RegisterController@Activate');
+    $router->post('/user/login', 'Authentication\LoginController@Login'); //up-to-date
 
-$router->post('/user/password/reset', 'Authentication\PasswordController@ResetPassword');
+    $router->post('/user/activate', 'Authentication\RegisterController@Activate'); //up-to-date
 
-$router->post('/user/password/new', 'Authentication\PasswordController@SetNewPassword');
+    $router->post('/user/password/reset', 'Authentication\PasswordController@ResetPassword');
 
-$router->post('admin/profile', ['middleware' => 'verify', function () {
-    return response()->json(["ez" => true]);
-}]);
+    $router->post('/user/password/new', 'Authentication\PasswordController@SetNewPassword');
+
+    //protected routes
+    $router->group(['middleware' => 'verify'], function () use ($router) {
+
+        $router->patch('/details/user', "UserController@updateUserDetails"); //up-to-date
+
+        $router->post('/details/company', "CompanyController@createCompany"); //up-to-date
+
+
+        
+        //sockets
+        $router->group(['prefix' => 'chat'], function () use ($router) {
+            $router->post('/create', "MessageController@createConversation"); //up-to-date
+        });
+
+        //sockets
+        $router->group(['prefix' => 'sockets'], function () use ($router) {
+
+        });
+    });
+});

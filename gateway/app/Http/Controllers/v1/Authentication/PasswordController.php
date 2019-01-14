@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Authentication;
+namespace App\Http\Controllers\v1\Authentication;
 
 use App\Http\Controllers\Controller;
 use GuzzleHttp\Client;

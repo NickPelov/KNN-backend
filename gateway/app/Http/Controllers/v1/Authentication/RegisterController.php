@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Authentication;
+namespace App\Http\Controllers\v1\Authentication;
 
 use App\Http\Controllers\Controller;
 use GuzzleHttp\Client;
@@ -14,6 +14,8 @@ class RegisterController extends Controller
     private $auth_service_client;
 
     private $mail_service_client;
+
+    private $resource_service_client;
 
     /**
      * Create a new controller instance.
@@ -35,6 +37,13 @@ class RegisterController extends Controller
             // You can set any number of default request options.
             'timeout' => 2.0,
         ]);
+
+        $this->resource_service_client = new Client([
+            // Base URI is used with relative requests
+            'base_uri' => env('RESOURCE_SERVICE_IP'),
+            // You can set any number of default request options.
+            'timeout' => 2.0,
+        ]);
     }
 
     public function Register(Request $request)
@@ -48,61 +57,76 @@ class RegisterController extends Controller
                             'contents' => $request->email,
                         ],
                         [
-                            'name' => 'first_name',
-                            'contents' => $request->first_name,
-                        ],
-                        [
-                            'name' => 'last_name',
-                            'contents' => $request->last_name,
-                        ],
-                        [
                             'name' => 'password',
                             'contents' => $request->password,
                         ],
                         [
-                            'name' => 'redirect_link',
-                            'contents' => $request->redirect_link,
+                            'name' => 'activation_link',
+                            'contents' => $request->activation_link,
                         ],
                     ],
                     'http_errors' => false,
                 ]);
 
-            $auth_responce_body = json_decode($auth_response->getBody()->getContents(), true);
+            $auth_response_body = json_decode($auth_response->getBody()->getContents(), true);
 
-            if (isset($auth_responce_body['activation_code'])) {
-                $mail_responce = $this->mail_service_client->post('user/register',
+            //proceed if the user was registered in the AuthService
+            if ($auth_response->getStatusCode() === 200) {
+
+                $mail_response = $this->mail_service_client->post('user/register',
                     [
                         'multipart' => [
                             [
                                 'name' => 'email',
-                                'contents' => $request->email,
+                                'contents' => $auth_response_body['data']['user_email'],
                             ],
                             [
-                                'name' => 'activation_code',
-                                'contents' =>
-                                env('GATEWAY_SERVICE_IP') . 'user/activate?activation_code=' . $auth_responce_body['activation_code'] . '&redirect_link=' . $request->redirect_link,
+                                'name' => 'activation_link',
+                                'contents' => $auth_response_body['data']['activation_link'],
                             ],
                         ],
                         'http_errors' => false,
                     ]);
-                return response()
-                    ->json(
+
+                $mail_response_body = json_decode($mail_response->getBody()->getContents(), true);
+
+                if ($mail_response->getStatusCode() === 200) {
+
+                    $resource_response = $this->resource_service_client->post('/user',
                         [
-                            'auth_data' => [
-                                'body' => $auth_responce_body,
-                                'statusCode' => $auth_response->getStatusCode(),
+                            'json' => [
+                                'auth_id' => $auth_response_body['data']['auth_id'],
+                                'is_invited' => false,
                             ],
-                            'mail_data' => [
-                                'body' => json_decode($mail_responce->getBody()->getContents(), true),
-                                'statusCode' => $mail_responce->getStatusCode(),
-                            ],
-                        ]
-                    );
+                            'http_errors' => false,
+                        ]);
+
+                    if ($resource_response->getStatusCode() === 204) {
+                        return response()->json([], 204);
+                    } else {
+
+                        return response()
+                            ->json(
+                                [
+                                    'data' => json_decode($resource_response->getBody()->getContents(), true),
+                                    'statusCode' => $resource_response->getStatusCode(),
+                                ]
+                            );
+                    }
+                } else {
+                    return response()
+                        ->json(
+                            [
+                                'data' => $mail_response_body,
+                                'statusCode' => $mail_response->getStatusCode(),
+                            ]
+                        );
+                }
             } else {
                 return response()
                     ->json(
                         [
-                            'data' => $auth_responce_body,
+                            'data' => $auth_response_body,
                             'statusCode' => $auth_response->getStatusCode(),
                         ]
                     );
@@ -130,14 +154,22 @@ class RegisterController extends Controller
     {
         $auth_activation_response =
         $this->auth_service_client
-            ->post('activate?activation_code=' . $request->activation_code . '&redirect_link=' . $request->redirect_link,
+            ->post('activate?activation_code=' . $request->activation_code,
                 [
                     'http_errors' => false,
                 ]);
-        $auth_activation_responce_body = json_decode($auth_activation_response->getBody()->getContents(), true);
 
-        if (isset($auth_activation_responce_body['redirect_link'])) {
-            return redirect($auth_activation_responce_body['redirect_link']);
-        }
+        if ($auth_activation_response->getStatusCode() === 204) {
+            return response()->json([], 204);
+        }    
+
+        $auth_activation_response_body = json_decode($auth_activation_response->getBody()->getContents(), true);
+
+        return response()
+            ->json(
+                [
+                    'response' => $auth_activation_response_body,
+                ]
+            );
     }
 }
